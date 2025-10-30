@@ -93,8 +93,7 @@ nano /etc/network/interfaces
 auto eth0
 iface eth0 inet dhcp <-- change from static to dhcp
 
-service networking restart
-dhclient -v
+dhclient -v  eth0
 
 verification:
 in clients/Gilgalad and Amandil nodes:
