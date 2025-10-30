@@ -3,7 +3,7 @@ apt update -y
 apt install -y isc-dhcp-server
 
 nano /etc/default/isc-dhcp-server
-INTERFACESv4="eth4"
+INTERFACESv4="eth0"
 
 nano /etc/dhcp/dhcpd.conf
 # -----------------------------------------
@@ -67,7 +67,7 @@ subnet 192.227.5.0 netmask 255.255.255.0 {
 #  FIXED ADDRESS - KHAMUL
 # ========================
 host Khamul {
-    hardware ethernet 02:00:00:00:03:95;
+    hardware ethernet 02:42:d6:54:3a:00;
     fixed-address 192.227.3.95;
 }
 
@@ -93,7 +93,8 @@ nano /etc/network/interfaces
 auto eth0
 iface eth0 inet dhcp <-- change from static to dhcp
 
-dhclient -v  eth0
+service networking restart <-- if cannot use, just skip this line
+dhclient -v eth0
 
 verification:
 in clients/Gilgalad and Amandil nodes:
