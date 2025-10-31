@@ -1,21 +1,16 @@
 in Aldarion:
-apt update -y
-apt install -y isc-dhcp-server
-
-nano /etc/default/isc-dhcp-server
-INTERFACESv4="eth0"
-
 nano /etc/dhcp/dhcpd.conf
 # -----------------------------------------
 # DHCP Configuration - Aldarion (DHCP Server)
 # -----------------------------------------
-
 ddns-update-style none;
 authoritative;
 log-facility local7;
 
-default-lease-time 600;
-max-lease-time 7200;
+#default-lease-time 600;    <-- hapus baris ini
+# Batas maksimum peminjaman untuk semua keluarga (1 jam)
+max-lease-time 3600;       <-- ganti dari 7200
+
 
 # ========================
 #  SUBNET 1 - MANUSIA
@@ -26,6 +21,9 @@ subnet 192.227.1.0 netmask 255.255.255.0 {
     option routers 192.227.1.1;
     option broadcast-address 192.227.1.255;
     option domain-name-servers 192.227.3.2, 192.227.3.3, 192.168.122.1;
+
+    # Manusia: 30 menit (1800 detik)
+    default-lease-time 1800;    <-- tambah baris ini
 }
 
 # ========================
@@ -37,6 +35,9 @@ subnet 192.227.2.0 netmask 255.255.255.0 {
     option routers 192.227.2.1;
     option broadcast-address 192.227.2.255;
     option domain-name-servers 192.227.3.2, 192.227.3.3, 192.168.122.1;
+
+    # Peri: 10 menit (600 detik)
+    default-lease-time 600;    <-- tambah baris ini
 }
 
 # ========================
@@ -73,34 +74,20 @@ host Khamul {
 
 service isc-dhcp-server restart
 
-in Durin:
-apt update -y
-apt install -y isc-dhcp-relay
+verification: tail -f /var/log/syslog | grep DHCPACK
+it should show different lease times for Manusia and Peri clients:
+DHCPACK on 192.227.1.20 to 02:42:xx:xx:xx:xx via eth0 (lease 1800 seconds)
+DHCPACK on 192.227.2.40 to 02:42:yy:yy:yy:yy via eth0 (lease 600 seconds)
 
-nano /etc/default/isc-dhcp-relay
-SERVERS="192.227.4.2"
-INTERFACES="eth1 eth2 eth3 eth4 eth5"
-OPTIONS=""
+verification client side:
+in Manusia client (e.g., Amandil):
+dhclient -v
+cat /var/lib/dhcp/dhclient.leases | grep lease
 
-service isc-dhcp-relay restart
+it should show lease time of 1800 seconds
 
-config dynamic client:
-in Gilgalad and Amandil:
-apt update --allow-releaseinfo-change -y
-apt install -y isc-dhcp-client
+in Peri client (e.g., Gilgalad):
+dhclient -v
+cat /var/lib/dhcp/dhclient.leases | grep lease
 
-nano /etc/network/interfaces
-auto eth0
-iface eth0 inet dhcp <-- change from static to dhcp
-
-service networking restart
-dhclient -v eth0
-
-verification:
-in clients/Gilgalad and Amandil nodes:
-ip a | grep inet
-cat /var/lib/dhcp/dhclient.leases
-
-in Aldarion (router/server):
-tail -f /var/log/syslog | grep DHCPACK
-should be:  DHCPACK on 192.227.x.x to 02:00:00:00:xx:xx via eth0
+it should show lease time of 600 seconds
