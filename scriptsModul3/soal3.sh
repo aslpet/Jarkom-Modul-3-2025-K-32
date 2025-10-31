@@ -1,52 +1,35 @@
-#Di Ministir
+#Di Minastir
 apt update -y
-apt install -y nginx 
+apt install -y bind9
 
-# Hapus konfigurasi default Nginx
-rm /etc/nginx/sites-enabled/default
-mkdir -p /etc/nginx/conf.d
-nano /etc/nginx/conf.d/proxy.conf
-server {
-    listen 8080;
+nano /etc/bind/named.conf.options
+options {
+    directory "/var/cache/bind";
 
-    resolver 192.168.122.1 ipv6=off;
+    // Forward semua query DNS ke resolver upstream
+    forwarders {
+        192.168.122.1;    // bisa juga 8.8.8.8 bila ingin ke DNS publik
+    };
 
-    location / {
-        # Izinkan subnet internal
-        allow 192.227.0.0/16;
-        deny all;
+    allow-query { any; };   // izinkan semua klien
+    recursion yes;          // aktifkan recursive resolving
+    dnssec-validation no;   // nonaktifkan validasi DNSSEC
+    listen-on { any; };     // dengarkan di semua interface
+};
 
-        # Forward ke host tujuan
-        proxy_pass $scheme://$http_host$request_uri;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
+/usr/sbin/named -u bind
+netstat -tuln | grep :53    # harus ada listener UDP/TCP port 53
 
-        proxy_connect_timeout 30s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-
-    access_log /var/log/nginx/proxy_access.log;
-    error_log /var/log/nginx/proxy_error.log;
-}
-
-nginx -t
-service nginx restart
-netstat -tuln | grep 8080
-
-#Di GIlgalad
+#Di clients/Gilgalad, Amandil, dll
 # Set variabel proxy di sesi saat ini
-export http_proxy="http://192.227.4.3:8080"
-export https_proxy="http://192.227.4.3:8080"
-
-# (Opsional) Tambahkan ke .bashrc agar permanen
-echo 'export http_proxy="http://192.227.4.3:8080"' >> ~/.bashrc
-echo 'export https_proxy="http://192.227.4.3:8080"' >> ~/.bashrc
-source ~/.bashrc
+nano /etc/resolv.conf
+nameserver 192.227.5.2     # IP Minastir
 
 verification:
 in Gilgalad:
-wget -O /dev/null http://google.com
-wget -O /dev/null http://www.debian.org
-in Minastir:
-tail -f /var/log/nginx/access.log  <-- logging
+dig google.com
+
+it should be:
+;; SERVER: 192.227.4.3#53(192.227.4.3)
+;; ANSWER SECTION:
+google.com. 30 IN A 142.250.64.78
