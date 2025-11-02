@@ -32,6 +32,8 @@ $TTL 604800
 ; PTR Records (Reverse Mapping)
 2.3.227.192.in-addr.arpa.   IN  PTR ns1.k32.com.   ; Erendis
 3.3.227.192.in-addr.arpa.   IN  PTR ns2.k32.com.   ; Amdir
+# 2       IN  PTR ns1.k32.com.   ; Erendis (192.227.3.2)
+# 3       IN  PTR ns2.k32.com.   ; Amdir (192.227.3.3)
 
 nano /etc/bind/named.conf.local
 add this zone at the end:

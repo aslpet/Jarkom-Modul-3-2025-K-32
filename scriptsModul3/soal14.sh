@@ -1,4 +1,4 @@
-#Again, di masing-masing node yak
+#Again, di masing-masing node yak (galadriel, celeborn, and oropher)
 apt update
 apt install -y apache2-utils
 
@@ -8,7 +8,7 @@ htpasswd -c /etc/nginx/.htpasswd noldor
 nano /etc/nginx/sites-available/php-worker
 
 #Tambahkan ini, di bawah server_name dan diatas root /var/www/html;
-auth_basic "Akses Terbatas: Gerbang Taman Peri";
+    auth_basic "Akses Terbatas: Gerbang Taman Peri";
     auth_basic_user_file /etc/nginx/.htpasswd;
 
 # Uji konfigurasi Nginx

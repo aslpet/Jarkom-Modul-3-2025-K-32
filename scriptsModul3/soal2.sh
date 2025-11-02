@@ -85,7 +85,7 @@ OPTIONS=""
 service isc-dhcp-relay restart
 
 config dynamic client:
-in Gilgalad and Amandil:
+in Gilgalad, Amandil, and Khamul:
 apt update --allow-releaseinfo-change -y
 apt install -y isc-dhcp-client
 
@@ -97,7 +97,7 @@ service networking restart
 dhclient -v eth0
 
 verification:
-in clients/Gilgalad and Amandil nodes:
+in clients nodes/Gilgalad and Amandil/ and fixed ip node Khamul:
 ip a | grep inet
 cat /var/lib/dhcp/dhclient.leases
 

@@ -114,3 +114,8 @@ lynx http://galadriel.k32.com
 lynx http://celeborn.k32.com
 # Uji Oropher
 lynx http://oropher.k32.com
+
+it should show "Welcome to Taman Digital <hostname>" for each respective server.
+
+if using ip address to access any of the servers, the connection should be closed without any response.
+: curl: (52) Empty reply from server

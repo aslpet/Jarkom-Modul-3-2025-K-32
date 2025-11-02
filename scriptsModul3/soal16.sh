@@ -22,15 +22,20 @@ server {
         # Meneruskan permintaan ke kelompok worker
         proxy_pass http://Kesatria_Lorien;
 
+        # Meneruskan IP asli klien ke worker (worker akan melihat ini)
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
         # --- PENTING: Meneruskan Basic Auth & IP Asli ---
         # Meneruskan header Basic Authentication (Authorization)
+        # proxy_pass_header Authorization;
         proxy_set_header Authorization $http_authorization; 
-
-        # Meneruskan IP asli klien ke worker (worker akan melihat ini)
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header Host $host;
         # --------------------------------------------------
     }
+#
+#    access_log /var/log/nginx/pharazon-access.log;
+#    error_log /var/log/nginx/pharazon-error.log;
 }
 
 # 1. Aktifkan konfigurasi baru

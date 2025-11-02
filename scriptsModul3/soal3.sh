@@ -30,6 +30,6 @@ in Gilgalad:
 dig google.com
 
 it should be:
-;; SERVER: 192.227.4.3#53(192.227.4.3)
+;; SERVER: 192.227.5.2#53(192.227.5.2)
 ;; ANSWER SECTION:
 google.com. 30 IN A 142.250.64.78

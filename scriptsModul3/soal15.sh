@@ -20,3 +20,7 @@ echo "Anda (Sang Pengunjung) datang dari alamat IP: $visitor_ip";
 curl -u noldor:silvan http://galadriel.k32.com:8004
 curl -u noldor:silvan http://celeborn.k32.com:8005
 curl -u noldor:silvan http:/oropher.k32.com:8006
+
+output:
+Welcome to Taman Digital Galadriel.
+Anda (Sang Pengunjung) datang dari alamat IP: 192.227.2.35

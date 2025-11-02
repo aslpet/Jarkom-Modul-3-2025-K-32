@@ -10,6 +10,7 @@ server_name	celeborn.k32.com
 listen	8006
 server_name	oropher.k32.com
 
+in each node (galadriel, celeborn, and oropher):
 nginx -t
 service nginx restart
 service php8.4-fpm restart
