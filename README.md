@@ -226,6 +226,10 @@ Restart
 service networking restart
 dhclient -v eth0
 ```
+![Assets/modul3.png](assets/no2.1.png)
+
+![Assets/modul3.png](assets/no2.2.png)
+
 Untuk verification:
 in clients nodes/Gilgalad and Amandil/ and fixed ip node Khamul:
 ```
@@ -284,6 +288,11 @@ Output yang diharapkan:
 ;; SERVER: 192.227.5.2#53(192.227.5.2)
 ;; ANSWER SECTION:
 google.com. 30 IN A 142.250.64.78
+
+![Assets/modul3.png](assets/no3.1.png)
+
+![Assets/modul3.png](assets/no3.2.png)
+
 ## Soal 4
 Ratu Erendis menetapkan <k32.com> sebagai nama domain resmi Arda, menunjuk dirinya (Erendis/ns1) dan Amdir (Amdir/ns2) sebagai penjaga peta (DNS Master-Slave). Amdir harus selalu menyalin peta dari Erendis, dan semua lokasi penting didaftarkan ke dalam peta.
 
@@ -407,6 +416,10 @@ dig Palantir.k32.com @192.227.3.3  # Uji Slave
 ping 192.227.3.2 -c 3 
 ping 192.227.3.3 -c 3
 ```
+![Assets/modul3.png](assets/no4.1.png)
+
+![Assets/modul3.png](assets/no4.2.png)
+
 ## Soal 5
 Untuk memudahkan navigasi, alias www.k32.com dibuat. Reverse PTR dikonfigurasi agar lokasi Erendis dan Amdir dapat dilacak dari IP mereka, dan Erendis menambahkan Pesan Rahasia (TXT record) tentang "Cincin Sauron" dan "Aliansi Terakhir" yang harus disalin oleh Amdir.
 
@@ -492,7 +505,7 @@ Untuk verifikasi:
 Di gilgalad:
 ``` dig www.k32.com @192.227.3.2 ```
 it should be: ``` www.k32.com. 604800 IN CNAME k32.com.```
-
+![Assets/modul3.png](assets/no5.1.png)
 ```
 dig Elros.k32.com TXT @192.227.3.2
 dig Pharazon.k32.com TXT @192.227.3.2
@@ -502,6 +515,9 @@ it should be:
 Elros.k32.com. 604800 IN TXT "Cincin Sauron"
 Pharazon.k32.com. 604800 IN TXT "Aliansi Terakhir"
 ```
+![Assets/modul3.png](assets/no5.2.png)
+
+![Assets/modul3.png](assets/no5.3.png)
 ```
 dig -x 192.227.3.2 @192.227.3.2
 dig -x 192.227.3.3 @192.227.3.2
@@ -511,6 +527,7 @@ it should be:
 2.3.227.192.in-addr.arpa.  IN  PTR ns1.k32.com.
  3.3.227.192.in-addr.arpa.  IN  PTR ns2.k32.com.
 ```
+![Assets/modul3.png](assets/no5.4.png)
 ## Soal 6
 Aldarion memperbarui lease time DHCP untuk semua klien dinamis, menetapkan batas maksimal peminjaman satu jam (3600 detik), dan memberikan durasi spesifik: 30 menit (1800 detik) untuk Manusia dan 10 menit (600 detik) untuk Peri.
 
@@ -612,13 +629,14 @@ dhclient -v
 cat /var/lib/dhcp/dhclient.leases | grep lease
 ```
 it should show lease time of 1800 seconds
-
+![Assets/modul3.png](assets/no6.1.png)
 in Peri client (e.g., Gilgalad):
 ```
 dhclient -v
 cat /var/lib/dhcp/dhclient.leases | grep lease
 ```
 it should show lease time of 600 seconds
+![Assets/modul3.png](assets/no6.2.png)
 ## Soal 7
 Ksatria Númenor (Elendil, Isildur, dan Anarion) membangun benteng digital mereka. Mereka harus menginstal semua tools yang dibutuhkan (PHP 8.4, Composer, Nginx) dan mendapatkan cetak biru benteng (Laravel) dari repository yang ditentukan, lalu memverifikasinya melalui client.
 
@@ -631,6 +649,8 @@ apt update -y
 ```
 apt install -y nginx php8.4 php8.4-fpm php8.4-cli php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip unzip composer git
 ```
+![Assets/modul3.png](assets/no7.1.png)
+
 ### 2. Clone Project Laravel
 ```
 cd /var/www
@@ -666,7 +686,7 @@ ping -c 4 elendil.k32.com
 curl -I http://elendil.k32.com:8001/api/products
 lynx http://elendil.k32.com:8001/api/products
 ```
-
+![Assets/modul3.png](assets/no7.2.png)
 ## Soal 8
 Palantir dikonfigurasi sebagai Database Server (MariaDB) yang dapat diakses dari luar. Semua Laravel Worker dikonfigurasi untuk terhubung ke Palantir. Nginx diatur dengan Virtual Host unik per worker (8001, 8002, 8003) dan hanya mengizinkan akses melalui Domain Nama (menolak akses via IP). Migrasi dan seeding awal dijalankan di Elendil.
 
@@ -767,6 +787,9 @@ it should return HTTP/1.1 403 Forbidden
 
 lynx http://elendil.k32.com:8001
 ```
+![Assets/modul3.png](assets/no8.1.png)
+
+![Assets/modul3.png](assets/no8.2.png)
 ```
 IF IN VERIFICATION IT SHOWS DATABASE CONNECTION ERROR/ OR IN MIGRATION IT FAILS:
 cd /var/www/laravel
@@ -780,7 +803,7 @@ php artisan config:cache
 service php8.4-fpm restart
 service nginx reload
 ```
-
+![Assets/modul3.png](assets/no8.4.png)
 ## Soal 9
 Setiap Laravel Worker (Elendil, Isildur, Anarion) diuji untuk memastikan fungsi mandiri mereka: dapat menampilkan halaman utama Laravel dan berhasil terhubung serta mengambil data dari Palantir melalui endpoint API khusus.
 
@@ -865,6 +888,7 @@ curl http://Isildur.k32.com:8002/api/testdb
 curl http://Anarion.k32.com:8003/api/testdb
 ```
 #### Output WAJIB menampilkan "status": "connected" dan daftar database Palantir.
+![Assets/modul3.png](assets/no9.png)
 ## Soal 10
 Pemimpin bijak Elros dikonfigurasi sebagai Reverse Proxy menggunakan Nginx. Ia mengarahkan semua permintaan yang masuk ke elros.<xxxx>.com ke upstream kesatria_numenor (Elendil, Isildur, dan Anarion) secara merata menggunakan algoritma Round Robin (default).
 
@@ -916,6 +940,7 @@ Cek di Gilgalad/Amandil:
 dig elros.k32.com @192.227.3.2
 ping elros.k32.com
 ```
+![Assets/modul3.png](assets/no10.png)
 ## Soal 11
 Musuh menguji pertahanan Númenor dengan benchmark (ab) ke elros.<xxxx>.com/api/airing. Tujuan langkah ini adalah memantau kondisi worker selama serangan dan menerapkan strategi pertahanan dengan menambahkan weight pada algoritma Load Balancing di Elros, lalu membandingkan hasilnya.
 
@@ -939,10 +964,10 @@ apt install -y apache2-utils
 ```
 low load test via ab (Apache Benchmark) from each node:
 ```ab -n 100 -c 10 http://elros.k32.com/api/airing/ ```
-
+![Assets/modul3.png](assets/no11.01.png)
 stress test:
 ```ab -n 2000 -c 100 http://elros.k32.com/api/airing/ ```
-
+![Assets/modul3.png](assets/no11.02.png)
 see worker node load (Elendil, Isildur, Anarion):
 ```htop / top```
 
@@ -982,6 +1007,7 @@ service nginx reload
 ```
 now, retest via ab in client/laravel node (Gilgalad, Amandil) :
 ```ab -n 2000 -c 100 http://elros.k32.com/api/airing/```
+![Assets/modul3.png](assets/no11.03.png)
 Bandingkan hasilnya dengan sebelum diubah:
 look in elros:
 ```
@@ -1038,6 +1064,7 @@ server {
     return 444;    # Menutup koneksi tanpa mengirim respons (lebih stealthy)
 }
 ```
+![Assets/modul3.png](assets/no12.1.png)
 ### For Celeborn
 ```
 server {
@@ -1066,6 +1093,7 @@ server {
     return 444;    # Menutup koneksi tanpa mengirim respons (lebih stealthy)
 }
 ```
+![Assets/modul3.png](assets/no12.2.png)
 ### For Oropher
 ```
 server {
@@ -1100,6 +1128,7 @@ nginx -t
 service php8.4-fpm restart
 service nginx restart
 ```
+![Assets/modul3.png](assets/no12.3.png)
 ### Di Gilgalad
 ```
 apt update
@@ -1151,6 +1180,7 @@ service php8.4-fpm restart
 ```lynx http://celeborn.k32.com:8005```
 #### Uji Oropher
 ```lynx http://oropher.k32.com:8006```
+![Assets/modul3.png](assets/no13.1.png)
 ## Soal 14
 Keamanan ditingkatkan pada setiap PHP Worker (Galadriel, Celeborn, dan Oropher) dengan menerapkan Basic HTTP Authentication Nginx. Hanya pengguna noldor dengan kata sandi silvan yang diizinkan masuk ke gerbang taman digital.
 
@@ -1180,6 +1210,7 @@ curl -I http://galadriel.k32.com:8004
 curl -I http://celeborn.k32.com:8005
 curl -I http:/oropher.k32.com:8006
 ```
+![Assets/modul3.png](assets/no14.1.png)
 #### Output: HTTP/1.1 401 Unauthorized
 #### With credes
 ```
@@ -1187,6 +1218,9 @@ curl -u noldor:silvan http://galadriel.k32.com:8004
 curl -u noldor:silvan http://celeborn.k32.com:8005
 curl -u noldor:silvan http:/oropher.k32.com:8006
 ```
+![Assets/modul3.png](assets/no14.21.png)
+![Assets/modul3.png](assets/no14.22.png)
+![Assets/modul3.png](assets/no14.23.png)
 ## Soal 15
 Konfigurasi Nginx pada setiap PHP Worker dimodifikasi untuk menambahkan header X-Real-IP dan meneruskan alamat IP pengunjung ($remote_addr) ke PHP-FPM. File index.php diubah untuk menampilkan alamat IP pengunjung yang diterima tersebut.
 
@@ -1216,6 +1250,9 @@ curl -u noldor:silvan http://galadriel.k32.com:8004
 curl -u noldor:silvan http://celeborn.k32.com:8005
 curl -u noldor:silvan http:/oropher.k32.com:8006
 ```
+![Assets/modul3.png](assets/no15.1.png)
+![Assets/modul3.png](assets/no15.2.png)
+![Assets/modul3.png](assets/no15.3.png)
 Output:
 ```
 Welcome to Taman Digital Galadriel.
@@ -1276,6 +1313,11 @@ service nginx restart
 ```
 #### Uji dari gilgalad
 ```curl http://pharazon.k32.com```
+![Assets/modul3.png](assets/no16.1.png)
+
+![Assets/modul3.png](assets/no16.2.png)
+
+![Assets/modul3.png](assets/no16.3.png)
 #### Output yang diharapkan: Pesan 401 Unauthorized dari Pharazon
 ```curl -u noldor:silvan http://pharazon.k32.com```
 ## Soal 17
@@ -1332,14 +1374,20 @@ service nginx status
 ```
 #### Di Gilgalad
 ```ab -n 100 -c 10 -H 'Authorization: Basic bm9sZG9yOnNpbHZhbg==' http://pharazon.k32.com/```
+![Assets/modul3.png](assets/no17.1.png)
+
 #### cara cek error (yg ke galadriel)
 ```cat /var/log/nginx/error.log | grep "192.227.2.5:8004"```
+![Assets/modul3.png](assets/no17.2.png)
+
 it should show something like this:
 ```connect() failed (111: Connection refused) while connecting to upstream,
 client: 192.227.2.35, server: pharazon.k32.com,
 request: "GET / HTTP/1.0", upstream: "http://192.227.2.5:8004/",
 host: "pharazon.k32.com"
 ```
+![Assets/modul3.png](assets/no17.3.png)
+
 ## Soal 18
 Kekuatan Palantir dilindungi melalui replikasi Master-Slave. Palantir dikonfigurasi sebagai Master dan Narvi sebagai Slave yang secara otomatis menyalin semua data dari Master untuk database laravel_db.
 
@@ -1438,6 +1486,7 @@ it should show the data inserted from Palantir.
 |  1 | Legolas   | Archer   |
 |  2 | Thranduil | King     |
 +----+-----------+----------+
+![Assets/modul3.png](assets/no18.png)
 
 ## Soal 19
 Untuk menahan intensitas serangan, Rate Limiting diimplementasikan pada Elros dan Pharazon. Batasnya adalah 10 permintaan per detik per alamat IP. Pengujian dilakukan dengan Apache Benchmark (ab) dengan konkurensi tinggi untuk memverifikasi permintaan yang ditolak.
@@ -1491,6 +1540,8 @@ it should show something like this when rate limit exceeded:
 ```2025/10/31 22:10:23 [error] 2451#2451: *142 limiting requests, excess: 10.600 by zone "one", client: 192.227.2.35, server: pharazon.k32.com, request: "GET / HTTP/1.0"```
 or in access.log:
 ```2025/10/31 22:10:23 [error] 2451#2451: *142 limiting requests, excess: 10.600 by zone "one", client: 192.227.2.35, server: pharazon.k32.com, request: "GET / HTTP/1.0"```
+![Assets/modul3.png](assets/no19.png)
+
 ## Soal 20
 Mengaktifkan Reverse Proxy Caching pada Pharazon. Cache akan menyimpan respons dari PHP Worker (Kesatria_Lorien) selama 10 menit sehingga permintaan berulang tidak membebani worker.
 
@@ -1566,4 +1617,4 @@ there's should be result of the worker response (whether it's MISS:1st; HIT:2nd,
 in Galadriel:
 ```tail -f /var/log/nginx/access.log```
 #### Pada request pertama, worker akan menerima permintaan (kode 200). Setelah itu, tidak akan ada permintaan baru dari Pharazon selama cache masih valid (10 menit).
-
+![Assets/modul3.png](assets/no20.png)
