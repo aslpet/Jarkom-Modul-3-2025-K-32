@@ -400,11 +400,13 @@ service bind9 restart
 Kalau tidak bisa --> pkill named ; /usr/sbin/named -u bind -c /etc/bind/named.conf --> check: ps aux | grep named
 Untuk Verifikasi:
 Di gilgalad:
+```
 dig Palantir.k32.com @192.227.3.2  # Uji Master
 dig Palantir.k32.com @192.227.3.3  # Uji Slave
 
 ping 192.227.3.2 -c 3 
 ping 192.227.3.3 -c 3
+```
 ## Soal 5
 Untuk memudahkan navigasi, alias www.k32.com dibuat. Reverse PTR dikonfigurasi agar lokasi Erendis dan Amdir dapat dilacak dari IP mereka, dan Erendis menambahkan Pesan Rahasia (TXT record) tentang "Cincin Sauron" dan "Aliansi Terakhir" yang harus disalin oleh Amdir.
 
@@ -472,26 +474,283 @@ pkill named
 ```
 Di Amdir:
 ```
-
+nano /etc/bind/named.conf.local
+```
+add this zone at the end:
+```
+zone "3.227.192.in-addr.arpa" {
+    type slave;
+    file "/var/cache/bind/db.192.227";
+    masters { 192.227.3.2; };
+};
 ```
 ```
+pkill named
+/usr/sbin/named -u bind -c /etc/bind/named.conf
+```
+Untuk verifikasi:
+Di gilgalad:
+``` dig www.k32.com @192.227.3.2 ```
+it should be: ``` www.k32.com. 604800 IN CNAME k32.com.```
 
+```
+dig Elros.k32.com TXT @192.227.3.2
+dig Pharazon.k32.com TXT @192.227.3.2
+```
+it should be: 
+```
+Elros.k32.com. 604800 IN TXT "Cincin Sauron"
+Pharazon.k32.com. 604800 IN TXT "Aliansi Terakhir"
+```
+```
+dig -x 192.227.3.2 @192.227.3.2
+dig -x 192.227.3.3 @192.227.3.2
+```
+it should be: 
+```
+2.3.227.192.in-addr.arpa.  IN  PTR ns1.k32.com.
+ 3.3.227.192.in-addr.arpa.  IN  PTR ns2.k32.com.
 ```
 ## Soal 6
-
+Aldarion memperbarui lease time DHCP untuk semua klien dinamis, menetapkan batas maksimal peminjaman satu jam (3600 detik), dan memberikan durasi spesifik: 30 menit (1800 detik) untuk Manusia dan 10 menit (600 detik) untuk Peri.
 
 ---
-### 1. 
+### 1. Konfigurasi DHCP Server: Aldarion (Penyesuaian Lease Time)
+```
+nano /etc/dhcp/dhcpd.conf
+```
+```
+# -----------------------------------------
+# DHCP Configuration - Aldarion (DHCP Server)
+# -----------------------------------------
+ddns-update-style none;
+authoritative;
+log-facility local7;
+
+#default-lease-time 600;    <-- hapus baris ini
+# Batas maksimum peminjaman untuk semua keluarga (1 jam)
+max-lease-time 3600;       <-- ganti dari 7200
+
+
+# ========================
+#  SUBNET 1 - MANUSIA
+# ========================
+subnet 192.227.1.0 netmask 255.255.255.0 {
+    range 192.227.1.6 192.227.1.34;
+    range 192.227.1.68 192.227.1.94;
+    option routers 192.227.1.1;
+    option broadcast-address 192.227.1.255;
+    option domain-name-servers 192.227.3.2, 192.227.3.3, 192.168.122.1;
+
+    # Manusia: 30 menit (1800 detik)
+    default-lease-time 1800;    <-- tambah baris ini
+}
+
+# ========================
+#  SUBNET 2 - PERI
+# ========================
+subnet 192.227.2.0 netmask 255.255.255.0 {
+    range 192.227.2.35 192.227.2.67;
+    range 192.227.2.96 192.227.2.121;
+    option routers 192.227.2.1;
+    option broadcast-address 192.227.2.255;
+    option domain-name-servers 192.227.3.2, 192.227.3.3, 192.168.122.1;
+
+    # Peri: 10 menit (600 detik)
+    default-lease-time 600;    <-- tambah baris ini
+}
+
+# ========================
+#  SUBNET 3 - KURCACI
+# ========================
+subnet 192.227.3.0 netmask 255.255.255.0 {
+    option routers 192.227.3.1;
+    option broadcast-address 192.227.3.255;
+}
+
+# ========================
+#  SUBNET 4 - DATABASE
+# ========================
+subnet 192.227.4.0 netmask 255.255.255.0 {
+    option routers 192.227.4.1;
+    option broadcast-address 192.227.4.255;
+}
+
+# ========================
+#  SUBNET 5 - PROXY
+# ========================
+subnet 192.227.5.0 netmask 255.255.255.0 {
+    option routers 192.227.5.1;
+    option broadcast-address 192.227.5.255;
+}
+
+# ========================
+#  FIXED ADDRESS - KHAMUL
+# ========================
+host Khamul {
+    hardware ethernet 02:42:d6:54:3a:00;
+    fixed-address 192.227.3.95;
+}
+```
+Restart
+```
+service isc-dhcp-server restart
+```
+Untuk Verifikasi:
+```
+tail -f /var/log/syslog | grep DHCPACK
+```
+It should show different lease times for Manusia and Peri clients:
+```
+DHCPACK on 192.227.1.20 to 02:42:xx:xx:xx:xx via eth0 (lease 1800 seconds)
+DHCPACK on 192.227.2.40 to 02:42:yy:yy:yy:yy via eth0 (lease 600 seconds)
+```
+Verification client side:
+in Manusia client (e.g., Amandil):
+```
+dhclient -v
+cat /var/lib/dhcp/dhclient.leases | grep lease
+```
+it should show lease time of 1800 seconds
+
+in Peri client (e.g., Gilgalad):
+```
+dhclient -v
+cat /var/lib/dhcp/dhclient.leases | grep lease
+```
+it should show lease time of 600 seconds
 ## Soal 7
-
+Ksatria Númenor (Elendil, Isildur, dan Anarion) membangun benteng digital mereka. Mereka harus menginstal semua tools yang dibutuhkan (PHP 8.4, Composer, Nginx) dan mendapatkan cetak biru benteng (Laravel) dari repository yang ditentukan, lalu memverifikasinya melalui client.
 
 ---
-### 1. 
+### Lakukan langkah-langkah ini di Elendil, Isildur, dan Anarion:
+```
+apt update -y
+```
+### 1. Install Nginx, PHP-FPM, dan tools untuk Laravel
+```
+apt install -y nginx php8.4 php8.4-fpm php8.4-cli php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip unzip composer git
+```
+### 2. Clone Project Laravel
+```
+cd /var/www
+rm -rf laravel   # Hapus folder jika ada
+git clone https://github.com/elshiraphine/laravel-simple-rest-api laravel
+cd laravel
+```
+### 3. Install Dependency
+Ini akan mengunduh semua library yang dibutuhkan Laravel
+```
+composer install
+composer update
+```
+### 4. Setup Lingkungan
+Buat file .env dari contoh dan generate encryption key
+```
+cp .env.example .env
+php artisan key:generate
+```
+### 5. Atur Kepemilikan (penting agar Nginx dan PHP-FPM bisa menulis ke log/cache)
+```
+chown -R www-data:www-data /var/www/laravel
+chmod -R 775 /var/www/laravel/storage
+```
+```
+service php8.4-fpm restart
+service nginx restart
+```
+Verifikasi dari node lain (Gilgalad dan Amandil):
+```
+apt update && apt install lynx -y
+ping -c 4 elendil.k32.com
+curl -I http://elendil.k32.com:8001/api/products
+lynx http://elendil.k32.com:8001/api/products
+```
+
 ## Soal 8
-
+Palantir dikonfigurasi sebagai Database Server (MariaDB) yang dapat diakses dari luar. Semua Laravel Worker dikonfigurasi untuk terhubung ke Palantir. Nginx diatur dengan Virtual Host unik per worker (8001, 8002, 8003) dan hanya mengizinkan akses melalui Domain Nama (menolak akses via IP). Migrasi dan seeding awal dijalankan di Elendil.
 
 ---
-### 1. 
+### 1. Konfigurasi Database Server: Palantir
+#### Lakukan di Elendil, Isildur, dan Anarion
+#### A. Tambahkan Import DB di API Routes
+#### Anda harus menambahkan 'use Illuminate\Support\Facades\DB;' di routes/api.php karena di file asli tidak ada.
+```
+nano /var/www/laravel/routes/api.php
+```
+#### Tambahkan baris di bawah 'use Illuminate\Support\Facades\Route;'
+Sebelum:
+```
+use Illuminate\Support\Facades\Route;
+```
+Setelah (tambahkan baris ini):
+```
+use Illuminate\Support\Facades\DB;  # <-- WAJIB DITAMBAHKAN!
+# use App\Http\Controllers\AiringController; # Biarkan baris ini ada
+```
+#### B. Tambahkan Endpoint Pengujian Koneksi DB
+##### Tambahkan rute pengujian di akhir file /routes/api.php, di LUAR Route::group(['prefix' => 'airing']).
+##### Rute ini akan menjadi /api/testdb
+```
+nano /var/www/laravel/routes/api.php
+```
+##### Tambahkan kode ini di BARIS PALING BAWAH file api.php:
+```
+Route::get('/testdb', function () {
+    try {
+        // Lakukan query sederhana untuk memastikan koneksi ke Palantir sukses
+        $databases = DB::select('SHOW DATABASES');
+
+        return response()->json([
+            'status' => 'connected',
+            'message' => 'Koneksi ke Palantir (DB) berhasil.',
+            'databases' => $databases
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Gagal terhubung ke Palantir. Error: ' . $e->getMessage()
+        ], 500);
+    }
+});
+```
+##### C. Hapus/Abaikan Perubahan di bootstrap/app.php
+##### DIKARENAKAN struktur file Anda adalah Laravel baru, Anda TIDAK PERLU menambahkan 'api: __DIR__.'/../routes/api.php',' secara manual. Anda CUKUP MEMASTIKAN Laravel menggunakan 'web.php' dan 'api.php' di file app/Providers/RouteServiceProvider.php
+##### ABAIKAN langkah edit bootstrap/app.php yang ada di catatan Anda.
+#### D. Clear dan Cache Rute
+```
+cd /var/www/laravel
+php artisan route:clear
+php artisan route:cache
+php artisan route:list   # (Opsional) Verifikasi rute /api/testdb sudah terdaftar
+
+service php8.4-fpm restart
+service nginx restart
+```
+##### Lakukan verifikasi di node client
+```
+apt update && apt install -y lynx curl
+
+echo "--- Verifikasi Halaman Utama Laravel (lynx) ---"
+lynx http://Elendil.k32.com:8001
+lynx http://Isildur.k32.com:8002
+lynx http://Anarion.k32.com:8003
+```
+#### Pastikan Anda melihat halaman selamat datang Laravel.
+```
+echo "--- Verifikasi API /api/airing yang ASLI (curl) ---"
+```
+#### Karena Anda tidak membuat AiringController, ini mungkin akan error 500, tapi setidaknya Nginx/PHP berjalan.
+``` curl http://Elendil.k32.com:8001/api/airing ```
+#### Catatan: Rute /api/airing yang asli mengarah ke AiringController, yang mungkin belum Anda buat. Ini hanya untuk memastikan rute yang ada terbaca.
+``` echo "--- Verifikasi Koneksi DB ke Palantir (/api/testdb) ---" ```
+#### Ini adalah pengganti rute /api/airing yang Anda buat.
+```
+curl http://Elendil.k32.com:8001/api/testdb
+curl http://Isildur.k32.com:8002/api/testdb
+curl http://Anarion.k32.com:8003/api/testdb
+```
+#### Output WAJIB menampilkan "status": "connected" dan daftar database Palantir.
 ## Soal 9
 
 
