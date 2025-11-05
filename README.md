@@ -670,8 +670,35 @@ lynx http://elendil.k32.com:8001/api/products
 ## Soal 8
 Palantir dikonfigurasi sebagai Database Server (MariaDB) yang dapat diakses dari luar. Semua Laravel Worker dikonfigurasi untuk terhubung ke Palantir. Nginx diatur dengan Virtual Host unik per worker (8001, 8002, 8003) dan hanya mengizinkan akses melalui Domain Nama (menolak akses via IP). Migrasi dan seeding awal dijalankan di Elendil.
 
----
 ### 1. Konfigurasi Database Server: Palantir
+```
+in Palantir (Database server 192.227.4.3):
+apt update -y
+apt install -y mariadb-server
+service mariadb start
+
+# Setup User dan Database
+mysql -u root
+CREATE DATABASE laravel_db;
+CREATE USER 'laravel'@'%' IDENTIFIED BY 'laravel123';
+GRANT ALL PRIVILEGES ON laravel_db.* TO 'laravel'@'%';
+FLUSH PRIVILEGES;
+EXIT;
+
+# Izinkan Akses dari Luar (Bind Address)
+nano /etc/mysql/mariadb.conf.d/50-server.cnf
+# Ganti:
+- bind-address = 127.0.0.1
++ bind-address = 0.0.0.0
+
+service mariadb restart
+```
+
+## Soal 9
+Setiap Laravel Worker (Elendil, Isildur, Anarion) diuji untuk memastikan fungsi mandiri mereka: dapat menampilkan halaman utama Laravel dan berhasil terhubung serta mengambil data dari Palantir melalui endpoint API khusus.
+
+---
+### 1. Modifikasi Rute API untuk Pengujian Koneksi Database
 #### Lakukan di Elendil, Isildur, dan Anarion
 #### A. Tambahkan Import DB di API Routes
 #### Anda harus menambahkan 'use Illuminate\Support\Facades\DB;' di routes/api.php karena di file asli tidak ada.
