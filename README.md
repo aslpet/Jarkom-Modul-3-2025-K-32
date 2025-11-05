@@ -693,6 +693,93 @@ nano /etc/mysql/mariadb.conf.d/50-server.cnf
 
 service mariadb restart
 ```
+### 2. Konfigurasi Worker Laravel (Elendil, Isildur, Anarion)
+#### Ganti nilai 'listen' dan 'server_name' sesuai tabel di bawah:
+#### Elendil: 8001 & elendil.k32.com
+#### Isildur: 8002 & isildur.k32.com
+#### Anarion: 8003 & anarion.k32.com
+```
+nano /etc/nginx/sites-available/laravel
+server {
+    listen 8001;    # 8002, 8003 untuk node lain
+    server_name elendil.k32.com;   # sesuaikan
+
+    root /var/www/laravel/public;
+    index index.php index.html index.htm;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+
+    # IZINKAN domain Elendil + Elros (reverse proxy) + IP internal (optional)
+    # if ($host !~ ^(Elendil|Elros|localhost)\.k32\.com$) {
+    #     return 403;
+    # }
+}
+```
+```
+ln -s /etc/nginx/sites-available/laravel /etc/nginx/sites-enabled/
+nginx -t
+service nginx restart
+service php8.4-fpm restart
+```
+### 3. Seeding (HANYA di Elendil)
+```
+# 1. Edit koneksi database di .env (setelah Soal 7 selesai)
+# (Gunakan kredensial yang kamu set di Palantir)
+nano /var/www/laravel/.env
+DB_CONNECTION=mysql
+DB_HOST=192.227.4.3        # IP Palantir (Database)
+DB_PORT=3306
+DB_DATABASE=laravel_db
+DB_USERNAME=laravel
+DB_PASSWORD=laravel123
+
+# 2. Jalankan Migrasi dan Seeding
+cd /var/www/laravel
+php artisan migrate --seed
+```
+### 4. Verifikasi
+```
+in Palantir:
+mysql -u laravel -p
+USE laravel_db;
+SHOW TABLES;
+SELECT * FROM users;
+it should show users created by seeder
+
+from other nodes (e.g., Gilgalad/Amandil):
+curl -I http://elendil.k32.com:8001
+it should return HTTP/1.1 200 OK
+curl -I http://192.227.1.2:8001
+it should return HTTP/1.1 403 Forbidden
+
+lynx http://elendil.k32.com:8001
+```
+```
+IF IN VERIFICATION IT SHOWS DATABASE CONNECTION ERROR/ OR IN MIGRATION IT FAILS:
+cd /var/www/laravel
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+php artisan config:cache
+service php8.4-fpm restart
+service nginx reload
+```
 
 ## Soal 9
 Setiap Laravel Worker (Elendil, Isildur, Anarion) diuji untuk memastikan fungsi mandiri mereka: dapat menampilkan halaman utama Laravel dan berhasil terhubung serta mengambil data dari Palantir melalui endpoint API khusus.
@@ -778,28 +865,259 @@ curl http://Isildur.k32.com:8002/api/testdb
 curl http://Anarion.k32.com:8003/api/testdb
 ```
 #### Output WAJIB menampilkan "status": "connected" dan daftar database Palantir.
-## Soal 9
-
-
----
-### 1. 
 ## Soal 10
-
+Pemimpin bijak Elros dikonfigurasi sebagai Reverse Proxy menggunakan Nginx. Ia mengarahkan semua permintaan yang masuk ke elros.<xxxx>.com ke upstream kesatria_numenor (Elendil, Isildur, dan Anarion) secara merata menggunakan algoritma Round Robin (default).
 
 ---
-### 1. 
+### 1. Di Elros
+```
+apt update -y
+apt install -y nginx
+```
+```
+nano /etc/nginx/sites-available/reverse-proxy
+```
+```
+# ============================
+# Reverse Proxy - Elros
+# ============================
+
+upstream kesatria_numenor {
+    server 192.227.1.2:8001;   # Elendil
+    server 192.227.1.3:8002;   # Isildur
+    server 192.227.1.4:8003;   # Anarion
+}
+
+server {
+    listen 80;
+    server_name elros.k32.com;
+
+    location / {
+        proxy_pass http://kesatria_numenor;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Opsional: untuk debugging / keamanan
+    access_log /var/log/nginx/elros-access.log;
+    error_log  /var/log/nginx/elros-error.log;
+}
+```
+Restart
+```
+ln -s /etc/nginx/sites-available/reverse-proxy /etc/nginx/sites-enabled/
+nginx -t
+service nginx restart
+```
+Cek di Gilgalad/Amandil:
+```
+dig elros.k32.com @192.227.3.2
+ping elros.k32.com
+```
 ## Soal 11
-
+Musuh menguji pertahanan Númenor dengan benchmark (ab) ke elros.<xxxx>.com/api/airing. Tujuan langkah ini adalah memantau kondisi worker selama serangan dan menerapkan strategi pertahanan dengan menambahkan weight pada algoritma Load Balancing di Elros, lalu membandingkan hasilnya.
 
 ---
-### 1. 
+### 1. Persiapan dan Serangan Awal (Benchmarking)
+Di Gilgalad/Amandil:
+```
+service nginx status
+service php8.4-fpm status
+```
+#### jika belum aktif:
+```
+service nginx restart
+service php8.4-fpm restart
+```
+Untuk testing:
+``` curl -I http://elros.k32.com/api/airing ```
+```
+apt update -y
+apt install -y apache2-utils
+```
+low load test via ab (Apache Benchmark) from each node:
+```ab -n 100 -c 10 http://elros.k32.com/api/airing/ ```
+
+stress test:
+```ab -n 2000 -c 100 http://elros.k32.com/api/airing/ ```
+
+see worker node load (Elendil, Isildur, Anarion):
+```htop / top```
+
+```tail -f /var/log/nginx/access.log```
+
+checkm elros logs:
+```
+tail -f /var/log/nginx/elros-access.log
+tail -f /var/log/nginx/elros-error.log
+```
+
+it should show:
+```
+"GET /api/airing HTTP/1.1" 200 - -> upstream: "http://192.227.1.2:8001"
+"GET /api/airing HTTP/1.1" 200 - -> upstream: "http://192.227.1.3:8002"
+"GET /api/airing HTTP/1.1" 200 - -> upstream: "http://192.227.1.4:8003"
+```
+if not, load balancing is not working properly.
+
+SO, the strategy:
+
+- adding weights in reverse proxy (Elros):
+
+in elros:
+```nano /etc/nginx/sites-available/reverse-proxy```
+edit upstream block:
+```
+upstream kesatria_numenor {
+    server 192.227.1.2:8001 weight=3    ;   # Elendil — lebih kuat
+    server 192.227.1.3:8002 weight=1;   # Isildur
+    server 192.227.1.4:8003 weight=2;   # Anarion
+}
+```
+```
+nginx -t
+service nginx reload
+```
+now, retest via ab in client/laravel node (Gilgalad, Amandil) :
+```ab -n 2000 -c 100 http://elros.k32.com/api/airing/```
+Bandingkan hasilnya dengan sebelum diubah:
+look in elros:
+```
+tail -f /var/log/nginx/access.log
+tail -n 20 /var/log/nginx/elros-access.log
+```
+- Apakah Requests per second meningkat?
+- Apakah Failed requests menurun?
+- Apakah beban lebih seimbang (lihat log Elros & worker)?
 ## Soal 12
-
+Para Penguasa Peri (Galadriel, Celeborn, dan Oropher) membangun Web Worker PHP. Nginx diinstal dan dikonfigurasi pada setiap node untuk menyajikan halaman index.php sederhana. Akses diatur secara ketat agar hanya dapat dilakukan melalui Domain Nama mereka, menolak akses langsung menggunakan IP.
 
 ---
-### 1. 
-## Soal 13
+### Di Galadriel, Celeborn, Oropher
+#### 1. Update list paket
+```apt update```
+#### 2. Instal Nginx dan PHP-FPM
+#### Catatan: Jika instalasi php8.4-fpm gagal, coba versi yang lebih rendah yang tersedia (misal: php8.2-fpm).
+```apt install -y nginx php8.4-fpm```
+#### Buat file index.php
+```echo '<?php echo "Welcome to Taman Digital "; echo gethostname(); ?>' > /var/www/html/index.php```
+#### Berikan hak akses yang benar untuk Nginx
+```chown -R www-data:www-data /var/www/html```
+#### Hapus symlink default yang aktif
+```rm /etc/nginx/sites-enabled/default```
+#### Edit file konfigurasi baru
+```nano /etc/nginx/sites-available/php-worker```
+### Di Galadriel
+#### Blok utama untuk melayani domain
+```
+server {
+    listen 80;
+    server_name galadriel.k32.com; 
 
+    root /var/www/html;
+    index index.php index.html index.htm;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Penanganan PHP menggunakan FPM
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock; 
+    }
+}
+
+# Blok 'catch-all' untuk menolak akses selain melalui domain.
+# Ini penting untuk memastikan "akses web hanya bisa melalui domain nama, tidak bisa melalui ip."
+server {
+    listen 80 default_server;
+    server_name _; # Menangkap semua permintaan yang tidak cocok dengan blok di atas
+    return 444;    # Menutup koneksi tanpa mengirim respons (lebih stealthy)
+}
+```
+### For Celeborn
+```
+server {
+    listen 80;
+    server_name celeborn.k32.com; 
+
+    root /var/www/html;
+    index index.php index.html index.htm;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Penanganan PHP menggunakan FPM
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock; 
+    }
+}
+
+# Blok 'catch-all' untuk menolak akses selain melalui domain.
+# Ini penting untuk memastikan "akses web hanya bisa melalui domain nama, tidak bisa melalui ip."
+server {
+    listen 80 default_server;
+    server_name _; # Menangkap semua permintaan yang tidak cocok dengan blok di atas
+    return 444;    # Menutup koneksi tanpa mengirim respons (lebih stealthy)
+}
+```
+### For Oropher
+```
+server {
+    listen 80;
+    server_name oropher.k32.com; 
+
+    root /var/www/html;
+    index index.php index.html index.htm;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Penanganan PHP menggunakan FPM
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock; 
+    }
+}
+
+# Blok 'catch-all' untuk menolak akses selain melalui domain.
+# Ini penting untuk memastikan "akses web hanya bisa melalui domain nama, tidak bisa melalui ip."
+server {
+    listen 80 default_server;
+    server_name _; # Menangkap semua permintaan yang tidak cocok dengan blok di atas
+    return 444;    # Menutup koneksi tanpa mengirim respons (lebih stealthy)
+}
+```
+```
+ln -s /etc/nginx/sites-available/php-worker /etc/nginx/sites-enabled/
+nginx -t
+service php8.4-fpm restart
+service nginx restart
+```
+### Di Gilgalad
+```
+apt update
+apt install -y lynx
+```
+### Uji Galadriel
+```lynx http://galadriel.k32.com```
+### Uji Celeborn
+```lynx http://celeborn.k32.com```
+### Uji Oropher
+```lynx http://oropher.k32.com```
+
+It should show "Welcome to Taman Digital <hostname>" for each respective server.
+
+If using ip address to access any of the servers, the connection should be closed without any response.
+: curl: (52) Empty reply from server
+## Soal 13
+Setiap Web Worker PHP (Galadriel, Celeborn, dan Oropher) dikonfigurasi untuk mendengarkan permintaan web pada port unik (8004, 8005, atau 8006) dan meneruskan permintaan file .php ke socket PHP-FPM yang sesuai.
 
 ---
 ### 1. 
