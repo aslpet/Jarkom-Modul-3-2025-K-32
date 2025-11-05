@@ -1120,39 +1120,450 @@ If using ip address to access any of the servers, the connection should be close
 Setiap Web Worker PHP (Galadriel, Celeborn, dan Oropher) dikonfigurasi untuk mendengarkan permintaan web pada port unik (8004, 8005, atau 8006) dan meneruskan permintaan file .php ke socket PHP-FPM yang sesuai.
 
 ---
-### 1. 
+### 1. Lakukan di node masing-masing
+```
+nano /etc/nginx/sites-available/php-worker
+```
+#### untuk galadriel
+```
+listen	8004
+server_name	galadriel.k32.com
+```
+#### untuk celeborn
+```
+listen	8005
+server_name	celeborn.k32.com
+```
+#### untuk oropher
+```
+listen	8006
+server_name	oropher.k32.com
+```
+In each node (galadriel, celeborn, and oropher):
+```
+nginx -t
+service nginx restart
+service php8.4-fpm restart
+```
+#### Uji Galadriel
+```lynx http://galadriel.k32.com:8004```
+#### Uji Celeborn
+```lynx http://celeborn.k32.com:8005```
+#### Uji Oropher
+```lynx http://oropher.k32.com:8006```
 ## Soal 14
-
+Keamanan ditingkatkan pada setiap PHP Worker (Galadriel, Celeborn, dan Oropher) dengan menerapkan Basic HTTP Authentication Nginx. Hanya pengguna noldor dengan kata sandi silvan yang diizinkan masuk ke gerbang taman digital.
 
 ---
-### 1. 
+### 1. Again, di masing-masing node yak (galadriel, celeborn, and oropher)
+```
+apt update
+apt install -y apache2-utils
+```
+#### Perintah ini membuat file baru (-c) dan menambahkan pengguna noldor. Anda akan diminta untuk memasukkan kata sandi (silvan) dua kali.
+```
+htpasswd -c /etc/nginx/.htpasswd noldor
+nano /etc/nginx/sites-available/php-worker
+
+#Tambahkan ini, di bawah server_name dan diatas root /var/www/html;
+    auth_basic "Akses Terbatas: Gerbang Taman Peri";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+```
+#### Uji konfigurasi Nginx
+```
+nginx -t
+service nginx restart
+```
+#### Coba yg tanpa credes
+```
+curl -I http://galadriel.k32.com:8004
+curl -I http://celeborn.k32.com:8005
+curl -I http:/oropher.k32.com:8006
+```
+#### Output: HTTP/1.1 401 Unauthorized
+#### With credes
+```
+curl -u noldor:silvan http://galadriel.k32.com:8004
+curl -u noldor:silvan http://celeborn.k32.com:8005
+curl -u noldor:silvan http:/oropher.k32.com:8006
+```
 ## Soal 15
-
+Konfigurasi Nginx pada setiap PHP Worker dimodifikasi untuk menambahkan header X-Real-IP dan meneruskan alamat IP pengunjung ($remote_addr) ke PHP-FPM. File index.php diubah untuk menampilkan alamat IP pengunjung yang diterima tersebut.
 
 ---
-### 1. 
+### 1. Lakukan ini di node masing2 juga
+```nano /etc/nginx/sites-available/php-worker```
+#### tambahkan ini, diantara include snippets dan fastcgi_pass
+```fastcgi_param HTTP_X_REAL_IP $remote_addr;```
+```
+nginx -t
+service nginx restart
+```
+```
+nano /var/www/html/index.php
+<?php 
+$hostname = gethostname();
+$visitor_ip = $_SERVER['HTTP_X_REAL_IP'] ?? $_SERVER['REMOTE_ADDR'];
+
+echo "Welcome to taman digital $hostname.<br>";
+echo "Anda (Sang Pengunjung) datang dari alamat IP: $visitor_ip"; 
+?>
+```
+#### Tes lagi dari gilgalad
+#### Uji Galadriel
+```
+curl -u noldor:silvan http://galadriel.k32.com:8004
+curl -u noldor:silvan http://celeborn.k32.com:8005
+curl -u noldor:silvan http:/oropher.k32.com:8006
+```
+Output:
+```
+Welcome to Taman Digital Galadriel.
+Anda (Sang Pengunjung) datang dari alamat IP: 192.227.2.35
+```
 ## Soal 16
-
+Raja Pharazon dikonfigurasi sebagai Reverse Proxy Nginx untuk mengawasi taman Peri (Galadriel, Celeborn, Oropher). Konfigurasi harus memastikan bahwa header Basic Authentication (Authorization) dan IP Asli pengunjung diteruskan dari Pharazon ke worker di upstream Kesatria_Lorien.
 
 ---
-### 1. 
+### Di Pharazon
+```
+apt update
+apt install -y nginx
+```
+```
+rm /etc/nginx/sites-enabled/default
+nano /etc/nginx/sites-available/pharazon-lb
+```
+#### 1. DEFINE UPSTREAM (Load Balancer Group)
+```
+upstream Kesatria_Lorien {
+    # Menggunakan algoritma default (Round Robin)
+    server 192.227.2.5:8004;  # Galadriel
+    server 192.227.2.6:8005;  # Celeborn
+    server 192.227.2.7:8006;  # Oropher
+}
+
+# 2. SERVER BLOCK (Reverse Proxy)
+server {
+    listen 80;
+    server_name pharazon.k32.com;
+
+    location / {
+        # Meneruskan permintaan ke kelompok worker
+        proxy_pass http://Kesatria_Lorien;
+
+        # Meneruskan IP asli klien ke worker (worker akan melihat ini)
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # --- PENTING: Meneruskan Basic Auth & IP Asli ---
+        # Meneruskan header Basic Authentication (Authorization)
+        # proxy_pass_header Authorization;
+        proxy_set_header Authorization $http_authorization; 
+        # --------------------------------------------------
+    }
+#
+#    access_log /var/log/nginx/pharazon-access.log;
+#    error_log /var/log/nginx/pharazon-error.log;
+}
+```
+##### 1. Aktifkan konfigurasi baru
+```
+ln -s /etc/nginx/sites-available/pharazon-lb /etc/nginx/sites-enabled/
+nginx -t
+service nginx restart
+```
+#### Uji dari gilgalad
+```curl http://pharazon.k32.com```
+#### Output yang diharapkan: Pesan 401 Unauthorized dari Pharazon
+```curl -u noldor:silvan http://pharazon.k32.com```
 ## Soal 17
-
+Lakukan benchmark ke pharazon.<xxxx>.com dengan menyertakan kredensial otentikasi. Amati distribusi beban di log Pharazon. Kemudian, simulasikan kegagalan salah satu worker PHP (Galadriel) untuk menguji fitur Failover Nginx: apakah Pharazon dapat secara otomatis mengalihkan lalu lintas hanya ke worker yang tersisa?
 
 ---
-### 1. 
+### 1. Simulate load balancing with Apache Benchmark (ab)
+#### Di Gilgalad
+```
+apt update
+apt install -y apache2-utils
+```
+#### opsi1: simple ab test without auth header
+#### Encode dengan
+```
+echo -n "noldor:silvan" | base64
+ab -n 100 -c 10 -H 'Authorization: Basic bm9sZG9yOnNpbHZhbg==' http://pharazon.k32.com/
+```
+#### opsi2: ab test with dynamic auth header
+```ab -n 100 -c 10 -H "Authorization: Basic $(echo -n 'noldor:silvan' | base64)" http://pharazon.k32.com/```
+#### Di Pharazon
+if hasn't got upstream_addr column, do this:
+```nano /etc/nginx/nginx.conf
+confirm:
+http {
+    log_format combined '$remote_addr - $remote_user [$time_local] '
+                        '"$request" $status $body_bytes_sent '
+                        '"$http_referer" "$http_user_agent" '
+                        '$upstream_addr';
+
+    access_log /var/log/nginx/pharazon-access.log combined;
+
+    # ... konfigurasi lain ...
+}
+
+nginx -t
+service nginx restart
+```
+now do ab test again from gilgalad;
+```ab -n 100 -c 10 -H "Authorization: Basic $(echo -n 'noldor:silvan' | base64)" http://pharazon.k32.com/```
+in pharazon, check the access log:
+```tail -f /var/log/nginx/pharazon-access.log```
+it should show upstream_addr column in access log, like this:
+```
+192.227.2.35 - - [31/Oct/2025:21:45:12 +0000] "GET / HTTP/1.0" 200 123 "-" "ApacheBench/2.3" 192.227.2.5:8004
+192.227.2.35 - - [31/Oct/2025:21:45:12 +0000] "GET / HTTP/1.0" 200 123 "-" "ApacheBench/2.3" 192.227.2.6:8005
+192.227.2.35 - - [31/Oct/2025:21:45:12 +0000] "GET / HTTP/1.0" 200 123 "-" "ApacheBench/2.3" 192.227.2.7:8006
+```
+#### Simulate nginx down in one of the worker node, e.g. Galadriel
+#### Di Galadriel
+```
+service nginx stop
+service nginx status
+```
+#### Di Gilgalad
+```ab -n 100 -c 10 -H 'Authorization: Basic bm9sZG9yOnNpbHZhbg==' http://pharazon.k32.com/```
+#### cara cek error (yg ke galadriel)
+```cat /var/log/nginx/error.log | grep "192.227.2.5:8004"```
+it should show something like this:
+```connect() failed (111: Connection refused) while connecting to upstream,
+client: 192.227.2.35, server: pharazon.k32.com,
+request: "GET / HTTP/1.0", upstream: "http://192.227.2.5:8004/",
+host: "pharazon.k32.com"
+```
 ## Soal 18
-
+Kekuatan Palantir dilindungi melalui replikasi Master-Slave. Palantir dikonfigurasi sebagai Master dan Narvi sebagai Slave yang secara otomatis menyalin semua data dari Master untuk database laravel_db.
 
 ---
-### 1. 
+### 1. Konfigurasi Database Master: Palantir
+```
+apt update -y
+apt install -y mariadb-server
+service mariadb start
+
+mysql -u root
+-- database laravel_db SUDAH ADA, jadi gak usah CREATE lagi
+GRANT ALL PRIVILEGES ON laravel_db.* TO 'laravel'@'%';
+
+-- buat user replikasi baru
+CREATE USER 'repluser'@'192.227.4.4' IDENTIFIED BY 'replpass';
+GRANT REPLICATION SLAVE ON *.* TO 'repluser'@'192.227.4.4';
+FLUSH PRIVILEGES;
+EXIT;
+
+nano /etc/mysql/mariadb.conf.d/50-server.cnf
+edit:
+bind-address = 0.0.0.0
+server-id = 1
+log_bin = /var/log/mysql/mysql-bin.log
+binlog_do_db = laravel_db
+
+service mariadb restart
+
+mysql -u root -p -e "SHOW MASTER STATUS\G"
+it will show something like this:
+File: mysql-bin.000001
+Position: 456
+```
+### 2. Konfigurasi Database Slave: Narvi
+```
+apt update -y
+apt install -y mariadb-server
+service mariadb start
+
+nano /etc/mysql/mariadb.conf.d/50-server.cnf
+edit:
+bind-address = 0.0.0.0
+server-id = 2
+relay_log = /var/log/mysql/mysql-relay-bin.log
+log_bin = /var/log/mysql/mysql-bin.log
+
+service mariadb restart
+
+mysql -u root
+STOP SLAVE;
+RESET SLAVE ALL;
+
+CHANGE MASTER TO
+MASTER_HOST='192.227.4.3',
+MASTER_USER='repluser',
+MASTER_PASSWORD='replpass',
+MASTER_LOG_FILE='mysql-bin.000001',
+MASTER_LOG_POS=456;
+
+START SLAVE;
+
+SHOW SLAVE STATUS\G
+it should show:
+Slave_IO_Running: Yes
+Slave_SQL_Running: Yes
+Seconds_Behind_Master: 0
+```
+#### Untuk Verifikasi
+in Palantir:
+```mysql -u root
+
+USE laravel_db;
+CREATE TABLE elf_army (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50),
+    rank VARCHAR(30)
+);
+
+INSERT INTO elf_army (name, rank)
+VALUES ('Legolas', 'Archer'),
+       ('Thranduil', 'King');
+```
+in Narvi:
+```
+mysql -u root
+
+USE laravel_db;
+SHOW TABLES;
+SELECT * FROM elf_army;
+```
+it should show the data inserted from Palantir.
++----+-----------+----------+
+| id | name      | rank     |
++----+-----------+----------+
+|  1 | Legolas   | Archer   |
+|  2 | Thranduil | King     |
++----+-----------+----------+
+
 ## Soal 19
-
+Untuk menahan intensitas serangan, Rate Limiting diimplementasikan pada Elros dan Pharazon. Batasnya adalah 10 permintaan per detik per alamat IP. Pengujian dilakukan dengan Apache Benchmark (ab) dengan konkurensi tinggi untuk memverifikasi permintaan yang ditolak.
 
 ---
-### 1. 
+### 1. Konfigurasi Rate Limiting di Nginx (Elros dan Pharazon)
+```nano /etc/nginx/sites-available/elros-lb  or nano /etc/nginx/sites-available/pharazon-lb```
+add at the very top, before server block:
+##### Zona shared memory untuk rate limiting (1MB bisa menyimpan sekitar 16.000 IP)
+```limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
+and in server block, inside location / { ... }, before proxy_pass add:
+limit_req zone=one burst=20 nodelay;
+```
+example (in pharazon):
+```upstream Kesatria_Lorien {
+    server 192.227.2.5:8004;
+    server 192.227.2.6:8005;
+    server 192.227.2.7:8006;
+}
+
+limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
+
+server {
+    listen 80;
+    server_name pharazon.k32.com;
+
+    location / {
+        limit_req zone=one burst=20 nodelay;
+
+        proxy_pass http://Kesatria_Lorien;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+    }
+}
+```
+```
+nginx -t
+service nginx reload
+```
+in gilgalad/Amandil/clients:
+```
+apt install -y apache2-utils
+
+ab -n 500 -c 50 -H 'Authorization: Basic bm9sZG9yOnNpbHZhbg==' http://pharazon.k32.com/
+```
+in pharazon and elros:
+check log in pharazon and elros:
+```tail -f /var/log/nginx/error.log```
+it should show something like this when rate limit exceeded:
+```2025/10/31 22:10:23 [error] 2451#2451: *142 limiting requests, excess: 10.600 by zone "one", client: 192.227.2.35, server: pharazon.k32.com, request: "GET / HTTP/1.0"```
+or in access.log:
+```2025/10/31 22:10:23 [error] 2451#2451: *142 limiting requests, excess: 10.600 by zone "one", client: 192.227.2.35, server: pharazon.k32.com, request: "GET / HTTP/1.0"```
 ## Soal 20
-
+Mengaktifkan Reverse Proxy Caching pada Pharazon. Cache akan menyimpan respons dari PHP Worker (Kesatria_Lorien) selama 10 menit sehingga permintaan berulang tidak membebani worker.
 
 ---
-### 1. 
+### 1. In pharazon:
+```
+mkdir -p /var/cache/nginx/proxy_cache
+chown -R www-data:www-data /var/cache/nginx/proxy_cache
+nano /etc/nginx/sites-available/pharazon-lb
+```
+add caching conf before server { , after upstream XXXX {}:
+#### Zona cache: 100 MB size, valid 10 menit
+```proxy_cache_path /var/cache/nginx/proxy_cache levels=1:2 keys_zone=my_cache:100m max_size=500m inactive=10m use_temp_path=off;```
+
+and edit server block (server {...}):
+```
+server {
+    listen 80;
+    server_name pharazon.k32.com;
+
+    location / {
+        proxy_pass http://Kesatria_Lorien;
+
+        # Header dan IP forwarding
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+
+        # -------------------
+        # ENABLE CACHING HERE
+        # -------------------
+        proxy_cache my_cache;
+        proxy_cache_valid 200 302 10m;
+        proxy_cache_valid 404 1m;
+
+        # Tambahkan header agar bisa dicek via curl
+        add_header X-Cache-Status $upstream_cache_status;
+
+        # Agar POST dan auth request tidak di-cache
+        proxy_cache_methods GET HEAD;
+    }
+}
+
+nginx -t
+service nginx reload
+```
+
+Untuk verifikasi:
+in Gilgalad/Amandil/Clients:
+```curl -I http://pharazon.k32.com/ / curl -u noldor:silvan http://pharazon.k32.com/ / curl -I -u noldor:silvan http://pharazon.k32.com/```
+1st output:
+```HTTP/1.1 200 OK
+Server: nginx
+Date: Fri, 31 Oct 2025 22:45:13 GMT
+Content-Type: text/html; charset=UTF-8
+Connection: keep-alive
+X-Cache-Status: MISS   <-- should be MISS
+```
+again,
+```curl -I http://pharazon.k32.com/ / curl -u noldor:silvan http://pharazon.k32.com/ / curl -I -u noldor:silvan http://pharazon.k32.com/```
+2nd output should be:
+```HTTP/1.1 200 OK
+Server: nginx
+Date: Fri, 31 Oct 2025 22:45:13 GMT
+Content-Type: text/html; charset=UTF-8
+Connection: keep-alive
+X-Cache-Status: HIT   <-- should be HIT
+```
+in Pharazon:
+```ls -lh /var/cache/nginx/proxy_cache```
+there's should be result of the worker response (whether it's MISS:1st; HIT:2nd,est; EXPIRED:invalid; BYPASS:bypass)
+
+in Galadriel:
+```tail -f /var/log/nginx/access.log```
+#### Pada request pertama, worker akan menerima permintaan (kode 200). Setelah itu, tidak akan ada permintaan baru dari Pharazon selama cache masih valid (10 menit).
+
