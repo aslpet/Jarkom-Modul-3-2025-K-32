@@ -18,7 +18,10 @@ edit:
 bind-address = 0.0.0.0
 server-id = 1
 log_bin = /var/log/mysql/mysql-bin.log
-binlog_do_db = laravel_db
+binlog_do_db = laravel_db                           <-- tambah ini
+
+mkdir -p /var/log/mysql
+chown mysql:mysql /var/log/mysql
 
 service mariadb restart
 
@@ -36,8 +39,11 @@ nano /etc/mysql/mariadb.conf.d/50-server.cnf
 edit:
 bind-address = 0.0.0.0
 server-id = 2
-relay_log = /var/log/mysql/mysql-relay-bin.log
+relay_log = /var/log/mysql/mysql-relay-bin.log     <-- tambah ini
 log_bin = /var/log/mysql/mysql-bin.log
+
+mkdir -p /var/log/mysql
+chown mysql:mysql /var/log/mysql
 
 service mariadb restart
 
@@ -50,7 +56,7 @@ MASTER_HOST='192.227.4.3',
 MASTER_USER='repluser',
 MASTER_PASSWORD='replpass',
 MASTER_LOG_FILE='mysql-bin.000001',
-MASTER_LOG_POS=456;
+MASTER_LOG_POS=328;
 
 START SLAVE;
 

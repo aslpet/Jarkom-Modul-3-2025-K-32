@@ -16,10 +16,14 @@ echo "Anda (Sang Pengunjung) datang dari alamat IP: $visitor_ip";
 ?>
 
 #Tes lagi dari gilgalad
-# Uji Galadriel
+# Uji galadriel, celeborn, dan oropher
 curl -u noldor:silvan http://galadriel.k32.com:8004
 curl -u noldor:silvan http://celeborn.k32.com:8005
 curl -u noldor:silvan http:/oropher.k32.com:8006
+
+lynx http://galadriel.k32.com:8004
+lynx http://celeborn.k32.com:8005
+lynx http:/oropher.k32.com:8006
 
 output:
 Welcome to Taman Digital Galadriel.

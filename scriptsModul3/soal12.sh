@@ -1,9 +1,7 @@
 # Di Galadriel, Celeborn, Oropher
-# 1. Update list paket
-apt update
-
-# 2. Instal Nginx dan PHP-FPM
+# 1. Update list paket dan Instal Nginx dan PHP-FPM
 # Catatan: Jika instalasi php8.4-fpm gagal, coba versi yang lebih rendah yang tersedia (misal: php8.2-fpm).
+apt update
 apt install -y nginx php8.4-fpm
 
 # Buat file index.php

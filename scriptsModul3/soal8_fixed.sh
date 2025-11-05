@@ -24,12 +24,17 @@ in worker laravel nodes (Elendil, Isildur, Anarion):
 # Anarion: 8003 & anarion.k32.com
 
 nano /etc/nginx/sites-available/laravel
+elendil:
 server {
-    listen 8001;    # 8002, 8003 untuk node lain
-    server_name elendil.k32.com;   # sesuaikan
+    listen 8001;
+    server_name elendil.k32.com;
 
     root /var/www/laravel/public;
     index index.php index.html index.htm;
+
+    if ($host = $server_addr) {
+        return 403;
+    }
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;
@@ -45,11 +50,62 @@ server {
     location ~ /\.ht {
         deny all;
     }
+}
 
-    # IZINKAN domain Elendil + Elros (reverse proxy) + IP internal (optional)
-    # if ($host !~ ^(Elendil|Elros|localhost)\.k32\.com$) {
-    #     return 403;
-    # }
+isildur:
+server {
+    listen 8002;
+    server_name isildur.k32.com;
+
+    root /var/www/laravel/public;
+    index index.php index.html index.htm;
+
+    if ($host = $server_addr) {
+        return 403;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+
+anarion:
+server {
+    listen 8003;
+    server_name anarion.k32.com;
+
+    root /var/www/laravel/public;
+    index index.php index.html index.htm;
+
+    if ($host = $server_addr) {
+        return 403;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
 }
 
 ln -s /etc/nginx/sites-available/laravel /etc/nginx/sites-enabled/
@@ -57,8 +113,7 @@ nginx -t
 service nginx restart
 service php8.4-fpm restart
 
-only in Elendil for seeding (to verify connection to database):
-# 1. Edit koneksi database di .env (setelah Soal 7 selesai)
+edit .env in every worker laravel nodes (elendil, anarion, isildur):
 # (Gunakan kredensial yang kamu set di Palantir)
 nano /var/www/laravel/.env
 DB_CONNECTION=mysql
@@ -68,7 +123,7 @@ DB_DATABASE=laravel_db
 DB_USERNAME=laravel
 DB_PASSWORD=laravel123
 
-# 2. Jalankan Migrasi dan Seeding
+only in Elendil for seeding (to verify connection to database):
 cd /var/www/laravel
 php artisan migrate --seed
 
